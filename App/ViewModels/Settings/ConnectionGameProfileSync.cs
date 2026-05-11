@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using MAAUnified.Application.Models;
+using MAAUnified.Application.Services;
 
 namespace MAAUnified.App.ViewModels.Settings;
 
@@ -15,6 +16,7 @@ internal static class ConnectionGameProfileSync
     private const string ClientTypeKey = "ClientType";
     private const string StartGameKey = "StartGame";
     private const string TouchModeKey = "TouchMode";
+    private const string PlayCoverScreencapModeKey = "PlayCoverScreencapMode";
     private const string AutoDetectKey = "AutoDetect";
     private const string AlwaysAutoDetectKey = "AlwaysAutoDetect";
     private const string RetryOnDisconnectedKey = "RetryOnDisconnected";
@@ -59,6 +61,7 @@ internal static class ConnectionGameProfileSync
     private const string DefaultClientType = "Official";
     private const bool DefaultStartGame = true;
     private const string DefaultTouchMode = "minitouch";
+    private const string DefaultPlayCoverScreencapMode = "RGBA";
     private const bool DefaultAutoDetect = true;
     private const bool DefaultAlwaysAutoDetect = false;
     private const bool DefaultRetryOnDisconnected = false;
@@ -87,6 +90,7 @@ internal static class ConnectionGameProfileSync
         nameof(ConnectionGameSharedStateViewModel.ClientType),
         nameof(ConnectionGameSharedStateViewModel.StartGameEnabled),
         nameof(ConnectionGameSharedStateViewModel.TouchMode),
+        nameof(ConnectionGameSharedStateViewModel.PlayCoverScreencapMode),
         nameof(ConnectionGameSharedStateViewModel.AutoDetect),
         nameof(ConnectionGameSharedStateViewModel.AlwaysAutoDetect),
         nameof(ConnectionGameSharedStateViewModel.RetryOnDisconnected),
@@ -121,6 +125,7 @@ internal static class ConnectionGameProfileSync
         profile.Values[ClientTypeKey] = JsonValue.Create((state.ClientType ?? string.Empty).Trim());
         profile.Values[StartGameKey] = JsonValue.Create(state.StartGameEnabled);
         profile.Values[TouchModeKey] = JsonValue.Create((state.TouchMode ?? string.Empty).Trim());
+        profile.Values[PlayCoverScreencapModeKey] = JsonValue.Create((state.PlayCoverScreencapMode ?? string.Empty).Trim());
         profile.Values[AutoDetectKey] = JsonValue.Create(state.AutoDetect);
         profile.Values[AlwaysAutoDetectKey] = JsonValue.Create(state.AlwaysAutoDetect);
         profile.Values[RetryOnDisconnectedKey] = JsonValue.Create(state.RetryOnDisconnected);
@@ -166,6 +171,9 @@ internal static class ConnectionGameProfileSync
                 return;
             case nameof(ConnectionGameSharedStateViewModel.TouchMode):
                 profile.Values[TouchModeKey] = JsonValue.Create((state.TouchMode ?? string.Empty).Trim());
+                return;
+            case nameof(ConnectionGameSharedStateViewModel.PlayCoverScreencapMode):
+                profile.Values[PlayCoverScreencapModeKey] = JsonValue.Create((state.PlayCoverScreencapMode ?? string.Empty).Trim());
                 return;
             case nameof(ConnectionGameSharedStateViewModel.AutoDetect):
                 profile.Values[AutoDetectKey] = JsonValue.Create(state.AutoDetect);
@@ -241,6 +249,7 @@ internal static class ConnectionGameProfileSync
         var fallbackClientType = tolerateMissing ? state.ClientType : DefaultClientType;
         var fallbackStartGame = tolerateMissing ? state.StartGameEnabled : DefaultStartGame;
         var fallbackTouchMode = tolerateMissing ? state.TouchMode : DefaultTouchMode;
+        var fallbackPlayCoverScreencapMode = tolerateMissing ? state.PlayCoverScreencapMode : DefaultPlayCoverScreencapMode;
         var fallbackAutoDetect = tolerateMissing ? state.AutoDetect : DefaultAutoDetect;
         var fallbackAlwaysAutoDetect = tolerateMissing ? state.AlwaysAutoDetect : DefaultAlwaysAutoDetect;
         var fallbackRetryOnDisconnected = tolerateMissing ? state.RetryOnDisconnected : DefaultRetryOnDisconnected;
@@ -266,11 +275,12 @@ internal static class ConnectionGameProfileSync
             fallbackConnectAddress,
             ConnectAddressKey,
             ConnectAddressLegacyKey);
-        state.ConnectConfig = ReadProfileStringWithAliases(
+        var storedConnectConfig = ReadProfileStringWithAliases(
             profile,
             fallbackConnectConfig,
             ConnectConfigKey,
             ConnectConfigLegacyKey);
+        state.ConnectConfig = NormalizeStoredConnectConfig(storedConnectConfig);
         state.AdbPath = ReadProfileStringWithAliases(
             profile,
             fallbackAdbPath,
@@ -278,7 +288,12 @@ internal static class ConnectionGameProfileSync
             AdbPathLegacyKey);
         state.ClientType = ReadProfileString(profile, ClientTypeKey, fallbackClientType);
         state.StartGameEnabled = ReadProfileBool(profile, StartGameKey, fallbackStartGame);
-        state.TouchMode = ReadProfileString(profile, TouchModeKey, fallbackTouchMode);
+        state.TouchMode = PlayCoverConnectConfigResolver.ResolveTouchMode(
+            state.ConnectConfig,
+            ReadProfileString(profile, TouchModeKey, fallbackTouchMode),
+            fallbackTouchMode);
+        state.PlayCoverScreencapMode = ReadProfileString(profile, PlayCoverScreencapModeKey, ResolveLegacyPlayCoverScreencapMode(storedConnectConfig, fallbackPlayCoverScreencapMode));
+
         state.AutoDetect = ReadProfileBool(profile, AutoDetectKey, fallbackAutoDetect);
         state.AlwaysAutoDetect = ReadProfileBoolWithAliases(
             profile,
@@ -390,6 +405,34 @@ internal static class ConnectionGameProfileSync
         return TryReadProfileString(profile, key, out var value)
             ? value
             : fallback;
+    }
+
+    private static string ResolveLegacyPlayCoverScreencapMode(string connectConfig, string fallback)
+    {
+        if (string.Equals(connectConfig, "MacSCK", StringComparison.OrdinalIgnoreCase))
+        {
+            return "MacSCK";
+        }
+
+        if (string.Equals(connectConfig, "MacBGR", StringComparison.OrdinalIgnoreCase))
+        {
+            return "BGR";
+        }
+
+        if (string.Equals(connectConfig, "CompatMac", StringComparison.OrdinalIgnoreCase))
+        {
+            return "RGBA";
+        }
+
+        return fallback;
+    }
+
+    private static string NormalizeStoredConnectConfig(string connectConfig)
+    {
+        return PlayCoverConnectConfigResolver.IsPlayCoverConnectConfig(connectConfig)
+            && !string.Equals(connectConfig, "MacPlayTools", StringComparison.OrdinalIgnoreCase)
+            ? "MacPlayTools"
+            : connectConfig;
     }
 
     private static bool TryReadProfileString(UnifiedProfile profile, string key, out string value)
