@@ -134,6 +134,24 @@ public sealed class MainShellViewModelTests
     }
 
     [Fact]
+    public async Task StartAsync_PlayCoverConnection_ShouldUseEffectiveConnectConfig()
+    {
+        var bridge = new FakeBridge();
+        await using var fixture = await TestFixture.CreateAsync(bridge: bridge);
+        await fixture.ViewModel.InitializeAsync();
+        Assert.True(await WaitUntilAsync(() => fixture.ViewModel.IsCoreReady, retry: 160, delayMs: 25));
+        fixture.ViewModel.ConnectionGameSharedState.ConnectConfig = "MacPlayTools";
+        fixture.ViewModel.ConnectionGameSharedState.PlayCoverScreencapMode = "MacSCK";
+        fixture.ViewModel.ConnectionGameSharedState.ConnectAddress = "127.0.0.1:1717";
+
+        await fixture.ViewModel.StartAsync();
+
+        Assert.NotNull(bridge.LastConnectionInfo);
+        Assert.Equal("MacSCK", bridge.LastConnectionInfo!.ConnectConfig);
+        Assert.Equal("127.0.0.1:1717", bridge.LastConnectionInfo.Address);
+    }
+
+    [Fact]
     public async Task ExecuteStartupLaunchBehaviorAsync_AllOptionsConfigured_ShouldInvokeStartupActionsOnceInOrder()
     {
         await using var fixture = await TestFixture.CreateAsync(
@@ -2361,6 +2379,8 @@ public sealed class MainShellViewModelTests
 
         public int InitializeCallCount { get; private set; }
 
+        public CoreConnectionInfo? LastConnectionInfo { get; private set; }
+
         public Task<CoreResult<CoreInitializeInfo>> InitializeAsync(
             CoreInitializeRequest request,
             CancellationToken cancellationToken = default)
@@ -2371,6 +2391,7 @@ public sealed class MainShellViewModelTests
 
         public Task<CoreResult<bool>> ConnectAsync(CoreConnectionInfo connectionInfo, CancellationToken cancellationToken = default)
         {
+            LastConnectionInfo = connectionInfo;
             return Task.FromResult(CoreResult<bool>.Ok(true));
         }
 
