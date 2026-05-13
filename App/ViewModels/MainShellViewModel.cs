@@ -1481,8 +1481,9 @@ public sealed class MainShellViewModel : ObservableObject
         var adbPath = string.IsNullOrWhiteSpace(effectiveAdbPath) ? null : effectiveAdbPath;
         var instanceOptions = _connectionGameSharedState.BuildCoreInstanceOptions();
         var candidates = _connectionGameSharedState.BuildConnectAddressCandidates(includeConfiguredAddress: true);
+        var effectiveConnectConfig = _connectionGameSharedState.EffectiveConnectConfig;
         _runtime.LogService.Debug(
-            $"Connect candidates prepared: count={candidates.Count}, config={_connectionGameSharedState.ConnectConfig}, adb={adbPath ?? "<null>"}");
+            $"Connect candidates prepared: count={candidates.Count}, config={effectiveConnectConfig}, adb={adbPath ?? "<null>"}");
         UiOperationResult? lastFailure = null;
 
         foreach (var candidate in candidates)
@@ -1490,7 +1491,7 @@ public sealed class MainShellViewModel : ObservableObject
             _runtime.LogService.Debug($"Trying connect candidate: {candidate}");
             var result = await _runtime.ShellFeatureService.ConnectAsync(
                 candidate,
-                _connectionGameSharedState.ConnectConfig,
+                effectiveConnectConfig,
                 adbPath,
                 instanceOptions,
                 cancellationToken);

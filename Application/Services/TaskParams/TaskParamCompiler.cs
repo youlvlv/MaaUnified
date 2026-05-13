@@ -159,6 +159,7 @@ public static class TaskParamCompiler
             ConnectAddress = ResolveStringSetting(profile, config, "ConnectAddress") ?? "127.0.0.1:5555",
             AdbPath = ResolveStringSetting(profile, config, "AdbPath") ?? string.Empty,
             TouchMode = ResolveStringSetting(profile, config, "TouchMode") ?? "minitouch",
+            PlayCoverScreencapMode = ResolveStringSetting(profile, config, "PlayCoverScreencapMode") ?? "RGBA",
             AutoDetectConnection = ResolveBooleanSetting(profile, config, "AutoDetect", true),
             AttachWindowScreencapMethod = ResolveStringSetting(profile, config, "AttachWindowScreencapMethod") ?? "2",
             AttachWindowMouseMethod = ResolveStringSetting(profile, config, "AttachWindowMouseMethod") ?? "64",
@@ -1404,6 +1405,7 @@ public static class TaskParamCompiler
         profile.Values["ConnectAddress"] = JsonValue.Create(dto.ConnectAddress);
         profile.Values["AdbPath"] = JsonValue.Create(dto.AdbPath);
         profile.Values["TouchMode"] = JsonValue.Create(dto.TouchMode);
+        profile.Values["PlayCoverScreencapMode"] = JsonValue.Create(dto.PlayCoverScreencapMode);
         profile.Values["AutoDetect"] = JsonValue.Create(dto.AutoDetectConnection);
         profile.Values["AttachWindowScreencapMethod"] = JsonValue.Create(dto.AttachWindowScreencapMethod);
         profile.Values["AttachWindowMouseMethod"] = JsonValue.Create(dto.AttachWindowMouseMethod);
